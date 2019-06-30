@@ -73,7 +73,7 @@ UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
 //uint32_t systickCnt = 0;
-static int32_t systickOld = 0;
+//static int32_t systickOld = 0;
 
 /* USER CODE END PV */
 
@@ -122,14 +122,14 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   //MX_IWDG_Init();
-  MX_RTC_Init();
+  //MX_RTC_Init();
   MX_TIM1_Init();
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
-//  static int32_t systickOld = 0;
+  static int32_t systickOld = 0;
   static uint32_t pinState = 0;
 
-  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_All, 0);
+  //HAL_GPIO_WritePin(GPIOC, GPIO_PIN_All, 0);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -141,17 +141,24 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 
-    if((systickCnt - systickOld) >= 1000) {
+    if((systickCnt - systickOld) >= 500) {
       systickOld = systickCnt;
 
 		  if(pinState == 0){
 			  pinState = 1;
-			  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_All, GPIO_PIN_SET);
+			  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_SET);
 			  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_SET);
+
+        // GPIOC->BSRR = GPIO_PIN_13;
+        // GPIOB->BSRR = GPIO_PIN_12;
+
 		  }else if(pinState == 1){
 			  pinState = 0;
-			  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_All, GPIO_PIN_RESET);
+			  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
         HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_RESET);
+        
+        // GPIOC->BSRR = (uint32_t)GPIO_PIN_13 << 16U;
+        // GPIOB->BSRR = (uint32_t)GPIO_PIN_12 << 16U;
 		  }
 
       }
