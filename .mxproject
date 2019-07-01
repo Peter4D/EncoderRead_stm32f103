@@ -1,7 +1,7 @@
 [PreviousGenFiles]
-HeaderPath=C:/Users/Peter/Documents/STM_projekti/qudrature_encoder_read/Inc
+HeaderPath=C:/Users/peter.medvesek/Documents/PeterMedvek_Gorenje_RD/ostali_projekti/qudrature_encoder_read/Inc
 HeaderFiles=stm32f1xx_it.h;stm32f1xx_hal_conf.h;main.h;
-SourcePath=C:/Users/Peter/Documents/STM_projekti/qudrature_encoder_read/Src
+SourcePath=C:/Users/peter.medvesek/Documents/PeterMedvek_Gorenje_RD/ostali_projekti/qudrature_encoder_read/Src
 SourceFiles=stm32f1xx_it.c;stm32f1xx_hal_msp.c;main.c;
 
 [PreviousLibFiles]
