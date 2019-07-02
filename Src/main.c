@@ -75,6 +75,14 @@ static uint32_t encoder_cnt = 0;
 
 static HAL_StatusTypeDef hUart1_status;
 
+typedef struct _encoder_t
+{
+    uint32_t dir;
+    uint32_t puls_cnt;
+}encoder_t;
+
+encoder_t hEncoder = {0};
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -94,8 +102,14 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 
     /* #debug */
     HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_12);
-    // read count value of encoder timer: 
-    encoder_cnt = htim1.Instance->CNT;
+
+    /* read count value of encoder timer: */ 
+    hEncoder.dir        = htim1.Instance->CR1 >> TIM_CR1_DIR_Pos;
+    hEncoder.puls_cnt   = htim1.Instance->CNT;
+}
+
+void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart) {
+    /* this callback function could run ring buffer to handle multiple messages */ 
 }
 
 /* USER CODE END 0 */
@@ -135,9 +149,12 @@ int main(void)
     static int32_t systickOld = 0;
     static uint8_t hello_msg[] = "hello word\n";
 
+    #define ENCODER_OUT_MSNG_len    (30u)
+    static uint8_t encoder_uart_msng_str[ENCODER_OUT_MSNG_len] = {0};
+    static uint8_t dir_value_str[] = "0";
     static uint8_t encoder_val_str[10] = {0};
-    static uint32_t encoder_val_str_len;
-    //HAL_GPIO_WritePin(GPIOC, GPIO_PIN_All, 0);
+    static uint32_t encoder_uart_msng_str_len;
+    
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -155,12 +172,28 @@ int main(void)
 
             /* #debug */
             HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
-            //encoder_val_str_len = num2str(encoder_cnt, encoder_val_str);
-            num2str(encoder_cnt, encoder_val_str);
-            strcat(encoder_val_str, "\n");
-            encoder_val_str_len = strlen(encoder_val_str);
+
+            // convert direction into string
+            if(hEncoder.dir == 1){
+                dir_value_str[0] = '0';
+            }else {
+                dir_value_str[0] = '1';
+            }
+            /* convert encoder counts to string  */
+            num2str(hEncoder.puls_cnt, encoder_val_str);
+            /* construct uart out message */
+            strcpy(encoder_uart_msng_str, "dir     : ");
+            strcat(encoder_uart_msng_str, dir_value_str);
+            strcat(encoder_uart_msng_str, "\n");
+
+            strcat(encoder_uart_msng_str, "step_cnt: ");
+            strcat(encoder_uart_msng_str, encoder_val_str);
+            strcat(encoder_uart_msng_str, "\n");
+
+            encoder_uart_msng_str_len = strlen(encoder_uart_msng_str);
+            assert_param(encoder_uart_msng_str_len < ENCODER_OUT_MSNG_len);
             
-            hUart1_status = HAL_UART_Transmit_IT(&huart1, encoder_val_str, encoder_val_str_len );
+            hUart1_status = HAL_UART_Transmit_IT(&huart1, encoder_uart_msng_str, encoder_uart_msng_str_len );
             //hUart1_status = HAL_UART_Transmit_IT(&huart1, hello_msg, (sizeof(hello_msg)-1) );
             //hUart1_status = HAL_UART_Transmit_IT(&huart1, "from stm32_HAL", sizeof("from stm32_HAL"));
             if (hUart1_status != HAL_OK)
