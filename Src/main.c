@@ -79,6 +79,10 @@ typedef struct _encoder_t
 {
     uint32_t dir;
     uint32_t puls_cnt;
+    uint32_t puls_old_cnt;
+    int32_t speed;
+    int32_t speed_old;
+    int32_t accel;
 }encoder_t;
 
 encoder_t hEncoder = {0};
@@ -106,6 +110,14 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
     /* read count value of encoder timer: */ 
     hEncoder.dir        = htim1.Instance->CR1 >> TIM_CR1_DIR_Pos;
     hEncoder.puls_cnt   = htim1.Instance->CNT;
+
+    /* calculate speed */
+    hEncoder.speed          = hEncoder.puls_cnt - hEncoder.puls_old_cnt;
+    hEncoder.puls_old_cnt   = hEncoder.puls_cnt;
+
+    /* calculate acceleration */
+    hEncoder.accel      = hEncoder.speed - hEncoder.speed_old;
+    hEncoder.speed_old  = hEncoder.speed;
 }
 
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart) {
@@ -149,7 +161,7 @@ int main(void)
     static int32_t systickOld = 0;
     static uint8_t hello_msg[] = "hello word\n";
 
-    #define ENCODER_OUT_MSNG_len    (30u)
+    #define ENCODER_OUT_MSNG_len    (75u)
     static uint8_t encoder_uart_msng_str[ENCODER_OUT_MSNG_len] = {0};
     static uint8_t dir_value_str[] = "0";
     static uint8_t encoder_val_str[10] = {0};
@@ -166,7 +178,7 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 
-        if ((systickCnt - systickOld) >= 500)
+        if ((systickCnt - systickOld) >= 200)
         {
             systickOld = systickCnt;
 
@@ -182,11 +194,22 @@ int main(void)
             /* convert encoder counts to string  */
             num2str(hEncoder.puls_cnt, encoder_val_str);
             /* construct uart out message */
-            strcpy(encoder_uart_msng_str, "dir     : ");
+            strcpy(encoder_uart_msng_str, "============ \n");
+            strcat(encoder_uart_msng_str, "dir     : ");
             strcat(encoder_uart_msng_str, dir_value_str);
             strcat(encoder_uart_msng_str, "\n");
 
             strcat(encoder_uart_msng_str, "step_cnt: ");
+            strcat(encoder_uart_msng_str, encoder_val_str);
+            strcat(encoder_uart_msng_str, "\n");
+
+            num2str(hEncoder.speed, encoder_val_str);
+            strcat(encoder_uart_msng_str, "speed   : ");
+            strcat(encoder_uart_msng_str, encoder_val_str);
+            strcat(encoder_uart_msng_str, "\n");
+
+            num2str(hEncoder.accel, encoder_val_str);
+            strcat(encoder_uart_msng_str, "accel   : ");
             strcat(encoder_uart_msng_str, encoder_val_str);
             strcat(encoder_uart_msng_str, "\n");
 
@@ -334,7 +357,7 @@ static void MX_TIM2_Init(void)
   htim2.Instance = TIM2;
   htim2.Init.Prescaler = 79;
   htim2.Init.CounterMode = TIM_COUNTERMODE_DOWN;
-  htim2.Init.Period = 999;
+  htim2.Init.Period = 9999;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
   if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
