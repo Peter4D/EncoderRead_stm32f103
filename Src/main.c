@@ -44,6 +44,9 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "stm32f1xx_it.h"
+#include "utilities.h"
+
+#include <string.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -72,8 +75,8 @@ TIM_HandleTypeDef htim2;
 UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
-//uint32_t systickCnt = 0;
-//static int32_t systickOld = 0;
+static uint32_t encoder_cnt = 0;
+
 static HAL_StatusTypeDef hUart1_status;
 
 /* USER CODE END PV */
@@ -94,7 +97,11 @@ static void MX_RTC_Init(void);
 /* USER CODE BEGIN 0 */
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
+
+    /* #debug */
     HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_12);
+    // read count value of encoder timer: 
+    encoder_cnt = htim1.Instance->CNT;
 }
 
 /* USER CODE END 0 */
@@ -134,8 +141,10 @@ int main(void)
   //MX_RTC_Init();
   /* USER CODE BEGIN 2 */
     static int32_t systickOld = 0;
-    static uint32_t pinState = 0;
+    static uint8_t hello_msg[] = "hello word\n";
 
+    static uint8_t encoder_val_str[10] = {0};
+    static uint32_t encoder_val_str_len;
     //HAL_GPIO_WritePin(GPIOC, GPIO_PIN_All, 0);
   /* USER CODE END 2 */
 
@@ -152,32 +161,20 @@ int main(void)
         {
             systickOld = systickCnt;
 
-            hUart1_status = HAL_UART_Transmit_IT(&huart1, "hello word", sizeof("hello word"));
+            /* #debug */
+            HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
+            //encoder_val_str_len = num2str(encoder_cnt, encoder_val_str);
+            num2str(encoder_cnt, encoder_val_str);
+            strcat(encoder_val_str, "\n");
+            encoder_val_str_len = strlen(encoder_val_str);
+            
+            hUart1_status = HAL_UART_Transmit_IT(&huart1, encoder_val_str, encoder_val_str_len );
+            //hUart1_status = HAL_UART_Transmit_IT(&huart1, hello_msg, (sizeof(hello_msg)-1) );
             //hUart1_status = HAL_UART_Transmit_IT(&huart1, "from stm32_HAL", sizeof("from stm32_HAL"));
             if (hUart1_status != HAL_OK)
             {
                 /* there is no buffer so this situation is not useful when two concurrent call are made */
                 assert_param(0);
-            }
-            //HAL_UART_Transmit(&huart1, "hello word", sizeof("hello word"), 100);
-
-            if (pinState == 0)
-            {
-                pinState = 1;
-                HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_SET);
-                //HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_SET);
-
-                // GPIOC->BSRR = GPIO_PIN_13;
-                // GPIOB->BSRR = GPIO_PIN_12;
-            }
-            else if (pinState == 1)
-            {
-                pinState = 0;
-                HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
-                //HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_RESET);
-
-                // GPIOC->BSRR = (uint32_t)GPIO_PIN_13 << 16U;
-                // GPIOB->BSRR = (uint32_t)GPIO_PIN_12 << 16U;
             }
         }
     }
