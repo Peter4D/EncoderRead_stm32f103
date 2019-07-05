@@ -78,10 +78,10 @@ static HAL_StatusTypeDef hUart1_status;
 typedef struct _encoder_t
 {
     uint32_t dir;
-    uint32_t puls_cnt;
-    uint32_t puls_old_cnt;
-    int32_t speed;
-    int32_t speed_old;
+    uint16_t puls_cnt;
+    uint16_t puls_old_cnt;
+    uint16_t speed;
+    uint16_t speed_old;
     int32_t accel;
 }encoder_t;
 
@@ -105,19 +105,30 @@ static void MX_TIM2_Init(void);
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 
     /* #debug */
-    HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_12);
+    if(htim->Instance == htim2.Instance){
+        HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_12);
 
-    /* read count value of encoder timer: */ 
-    hEncoder.dir        = htim1.Instance->CR1 >> TIM_CR1_DIR_Pos;
-    hEncoder.puls_cnt   = htim1.Instance->CNT;
+        /* read count value of encoder timer: */ 
+        hEncoder.dir        = htim1.Instance->CR1 >> TIM_CR1_DIR_Pos;
+        hEncoder.puls_cnt   = htim1.Instance->CNT;
 
-    /* calculate speed */
-    hEncoder.speed          = hEncoder.puls_cnt - hEncoder.puls_old_cnt;
-    hEncoder.puls_old_cnt   = hEncoder.puls_cnt;
+        /* calculate speed */
+        if(hEncoder.dir == 0) {
+            /* clockwise direction */
+            hEncoder.speed = hEncoder.puls_cnt - hEncoder.puls_old_cnt;
+        }else {
+            /* counter clockwise direction */
+            hEncoder.speed = (hEncoder.puls_old_cnt - hEncoder.puls_cnt);
+        }
+        hEncoder.puls_old_cnt   = hEncoder.puls_cnt;
 
-    /* calculate acceleration */
-    hEncoder.accel      = hEncoder.speed - hEncoder.speed_old;
-    hEncoder.speed_old  = hEncoder.speed;
+        /* calculate acceleration */
+        hEncoder.accel      = hEncoder.speed - hEncoder.speed_old;
+        hEncoder.speed_old  = hEncoder.speed;
+    }
+    if(htim->Instance == htim1.Instance){
+        //HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_12);
+    }
 }
 
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart) {
@@ -167,6 +178,14 @@ int main(void)
     static uint8_t encoder_val_str[10] = {0};
     static uint32_t encoder_uart_msng_str_len;
     
+    /* simple #test mistery of uint16_t */
+    static uint16_t u16_var1 = 10;
+    static uint16_t u16_var2 = 65530;
+    static uint16_t u16_var3 = 0;
+
+    u16_var3 = u16_var1 - u16_var2;
+
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -203,7 +222,7 @@ int main(void)
             strcat(encoder_uart_msng_str, encoder_val_str);
             strcat(encoder_uart_msng_str, "\n");
 
-            num2str(hEncoder.speed, encoder_val_str);
+            num2str((uint16_t)hEncoder.speed, encoder_val_str);
             strcat(encoder_uart_msng_str, "speed   : ");
             strcat(encoder_uart_msng_str, encoder_val_str);
             strcat(encoder_uart_msng_str, "\n");
@@ -212,6 +231,12 @@ int main(void)
             strcat(encoder_uart_msng_str, "accel   : ");
             strcat(encoder_uart_msng_str, encoder_val_str);
             strcat(encoder_uart_msng_str, "\n");
+
+            /* uint16_t #test */
+            // num2str(u16_var3, encoder_val_str);
+            // strcat(encoder_uart_msng_str, "u16_test : ");
+            // strcat(encoder_uart_msng_str, encoder_val_str);
+            // strcat(encoder_uart_msng_str, "\n");
 
             encoder_uart_msng_str_len = strlen(encoder_uart_msng_str);
             assert_param(encoder_uart_msng_str_len < ENCODER_OUT_MSNG_len);
@@ -327,9 +352,14 @@ static void MX_TIM1_Init(void)
       Error_Handler();
     }
 
-    if (HAL_TIM_Encoder_Start(&htim1, TIM_CHANNEL_ALL) != HAL_OK)
+    // if (HAL_TIM_Encoder_Start(&htim1, TIM_CHANNEL_ALL) != HAL_OK)
+    // {
+    //   Error_Handler();
+    // }
+    // _IT at the end mean that it will enable timer interrupt!!
+    if (HAL_TIM_Base_Start_IT(&htim1) != HAL_OK)
     {
-      Error_Handler();
+        Error_Handler();
     }
 
   /* USER CODE END TIM1_Init 2 */
