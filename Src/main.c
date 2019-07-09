@@ -77,12 +77,14 @@ static HAL_StatusTypeDef hUart1_status;
 
 typedef struct _encoder_t
 {
-    uint32_t dir;
-    uint16_t puls_cnt;
-    uint16_t puls_old_cnt;
-    uint16_t speed;
-    uint16_t speed_old;
-    int32_t accel;
+    uint32_t    dir;           // encoder direction information
+    uint32_t    puls_encoder;  // encoder puls count in one revolution -> REDUNDANT ? 
+    int64_t     rev_cnt;       // total revolutions of encoder 
+    int64_t     puls_cnt;      // total puls count 
+    int64_t     puls_old_cnt;  // total puls count used for speed calculation
+    int32_t     speed;         // calculated speed pulses per time unit
+    int32_t     speed_old;     // for use in calculation of acceleration 
+    int32_t     accel;         // calculated acceleration 
 }encoder_t;
 
 encoder_t hEncoder = {0};
@@ -92,9 +94,9 @@ encoder_t hEncoder = {0};
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
-static void MX_TIM1_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_TIM2_Init(void);
+static void MX_TIM1_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -103,31 +105,36 @@ static void MX_TIM2_Init(void);
 /* USER CODE BEGIN 0 */
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
-
+    hEncoder.dir        = htim1.Instance->CR1 >> TIM_CR1_DIR_Pos;
     /* #debug */
     if(htim->Instance == htim2.Instance){
         HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_12);
 
+        hEncoder.puls_encoder = htim1.Instance->CNT; 
         /* read count value of encoder timer: */ 
-        hEncoder.dir        = htim1.Instance->CR1 >> TIM_CR1_DIR_Pos;
-        hEncoder.puls_cnt   = htim1.Instance->CNT;
+        hEncoder.puls_cnt   = hEncoder.puls_encoder + hEncoder.rev_cnt * ECODER_PULS_PER_REV;
 
         /* calculate speed */
-        if(hEncoder.dir == 0) {
-            /* clockwise direction */
-            hEncoder.speed = hEncoder.puls_cnt - hEncoder.puls_old_cnt;
-        }else {
-            /* counter clockwise direction */
-            hEncoder.speed = (hEncoder.puls_old_cnt - hEncoder.puls_cnt);
-        }
-        hEncoder.puls_old_cnt   = hEncoder.puls_cnt;
+        hEncoder.speed = hEncoder.puls_cnt - hEncoder.puls_old_cnt;
+        hEncoder.puls_old_cnt = hEncoder.puls_cnt;
 
         /* calculate acceleration */
         hEncoder.accel      = hEncoder.speed - hEncoder.speed_old;
         hEncoder.speed_old  = hEncoder.speed;
     }
+
     if(htim->Instance == htim1.Instance){
+        /* #debug */
         //HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_12);
+
+        /* timer1 (ENCODER) update (overflow) */
+        if(hEncoder.dir == 0) {
+            /* clockwise direction */
+            hEncoder.rev_cnt++;
+        }else if(hEncoder.dir == 1) {
+            /* counter clockwise direction */
+            hEncoder.rev_cnt--;
+        }
     }
 }
 
@@ -165,9 +172,9 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_TIM1_Init();
   MX_USART1_UART_Init();
   MX_TIM2_Init();
+  MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
     static int32_t systickOld = 0;
     static uint8_t hello_msg[] = "hello word\n";
@@ -178,14 +185,6 @@ int main(void)
     static uint8_t encoder_val_str[10] = {0};
     static uint32_t encoder_uart_msng_str_len;
     
-    /* simple #test mistery of uint16_t */
-    static uint16_t u16_var1 = 10;
-    static uint16_t u16_var2 = 65530;
-    static uint16_t u16_var3 = 0;
-
-    u16_var3 = u16_var1 - u16_var2;
-
-
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -222,7 +221,7 @@ int main(void)
             strcat(encoder_uart_msng_str, encoder_val_str);
             strcat(encoder_uart_msng_str, "\n");
 
-            num2str((uint16_t)hEncoder.speed, encoder_val_str);
+            num2str(hEncoder.speed, encoder_val_str);
             strcat(encoder_uart_msng_str, "speed   : ");
             strcat(encoder_uart_msng_str, encoder_val_str);
             strcat(encoder_uart_msng_str, "\n");
@@ -233,8 +232,8 @@ int main(void)
             strcat(encoder_uart_msng_str, "\n");
 
             /* uint16_t #test */
-            // num2str(u16_var3, encoder_val_str);
-            // strcat(encoder_uart_msng_str, "u16_test : ");
+            // num2str(hEncoder.puls_encoder, encoder_val_str);
+            // strcat(encoder_uart_msng_str, "puls_encod: ");
             // strcat(encoder_uart_msng_str, encoder_val_str);
             // strcat(encoder_uart_msng_str, "\n");
 
@@ -299,21 +298,30 @@ static void MX_TIM1_Init(void)
 
   /* USER CODE END TIM1_Init 0 */
 
+  TIM_Encoder_InitTypeDef sConfig = {0};
   TIM_MasterConfigTypeDef sMasterConfig = {0};
-  TIM_IC_InitTypeDef sConfigIC = {0};
 
   /* USER CODE BEGIN TIM1_Init 1 */
-  TIM_Encoder_InitTypeDef sEncoder_Init = {0};
+  //TIM_Encoder_InitTypeDef sEncoder_Init = {0};
 
   /* USER CODE END TIM1_Init 1 */
   htim1.Instance = TIM1;
   htim1.Init.Prescaler = 0;
   htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim1.Init.Period = 0xFFFF;
+  htim1.Init.Period = ECODER_PULS_PER_REV;
   htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim1.Init.RepetitionCounter = 0;
   htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  if (HAL_TIM_IC_Init(&htim1) != HAL_OK)
+  sConfig.EncoderMode = TIM_ENCODERMODE_TI1;
+  sConfig.IC1Polarity = TIM_ICPOLARITY_RISING;
+  sConfig.IC1Selection = TIM_ICSELECTION_DIRECTTI;
+  sConfig.IC1Prescaler = TIM_ICPSC_DIV1;
+  sConfig.IC1Filter = ENCODER_FILTER;
+  sConfig.IC2Polarity = TIM_ICPOLARITY_RISING;
+  sConfig.IC2Selection = TIM_ICSELECTION_DIRECTTI;
+  sConfig.IC2Prescaler = TIM_ICPSC_DIV1;
+  sConfig.IC2Filter = ENCODER_FILTER;
+  if (HAL_TIM_Encoder_Init(&htim1, &sConfig) != HAL_OK)
   {
     Error_Handler();
   }
@@ -323,39 +331,30 @@ static void MX_TIM1_Init(void)
   {
     Error_Handler();
   }
-  sConfigIC.ICPolarity = TIM_INPUTCHANNELPOLARITY_RISING;
-  sConfigIC.ICSelection = TIM_ICSELECTION_DIRECTTI;
-  sConfigIC.ICPrescaler = TIM_ICPSC_DIV1;
-  sConfigIC.ICFilter = 4;
-  if (HAL_TIM_IC_ConfigChannel(&htim1, &sConfigIC, TIM_CHANNEL_1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sConfigIC.ICFilter = 0;
-  if (HAL_TIM_IC_ConfigChannel(&htim1, &sConfigIC, TIM_CHANNEL_2) != HAL_OK)
-  {
-    Error_Handler();
-  }
   /* USER CODE BEGIN TIM1_Init 2 */
-    sEncoder_Init.EncoderMode       = TIM_ENCODERMODE_TI1;
-    sEncoder_Init.IC1Polarity       = TIM_ICPOLARITY_RISING;
-    sEncoder_Init.IC1Selection      = TIM_ICSELECTION_DIRECTTI;
-    sEncoder_Init.IC1Prescaler      = TIM_ICPSC_DIV1;
-    sEncoder_Init.IC1Filter         = 0x04;
-    sEncoder_Init.IC2Polarity       = TIM_ICPOLARITY_RISING;
-    sEncoder_Init.IC2Selection      = TIM_ICSELECTION_DIRECTTI;
-    sEncoder_Init.IC2Prescaler      = TIM_ICPSC_DIV1;
-    sEncoder_Init.IC2Filter         = 0x04;
+    // sEncoder_Init.EncoderMode       = TIM_ENCODERMODE_TI1;      // encoder res. x2
+    // //sEncoder_Init.EncoderMode       = TIM_ENCODERMODE_TI12;   // encoder res. x4
+    // sEncoder_Init.IC1Polarity       = TIM_ICPOLARITY_RISING;
+    // sEncoder_Init.IC1Selection      = TIM_ICSELECTION_DIRECTTI;
+    // sEncoder_Init.IC1Prescaler      = TIM_ICPSC_DIV1;
+    // sEncoder_Init.IC1Filter         = 0x04;
+    // sEncoder_Init.IC2Polarity       = TIM_ICPOLARITY_RISING;
+    // sEncoder_Init.IC2Selection      = TIM_ICSELECTION_DIRECTTI;
+    // sEncoder_Init.IC2Prescaler      = TIM_ICPSC_DIV1;
+    // sEncoder_Init.IC2Filter         = 0x04;
 
-    if (HAL_TIM_Encoder_Init(&htim1, &sEncoder_Init) != HAL_OK)
-    {
-      Error_Handler();
-    }
+    // if (HAL_TIM_Encoder_Init(&htim1, &sEncoder_Init) != HAL_OK)
+    // {
+    //   Error_Handler();
+    // }
 
     // if (HAL_TIM_Encoder_Start(&htim1, TIM_CHANNEL_ALL) != HAL_OK)
     // {
     //   Error_Handler();
     // }
+
+    /* update interrupt flag if set at start so we need to clear it before enable timer update interrupt */
+    htim1.Instance->SR &= (~TIM_FLAG_UPDATE);
     // _IT at the end mean that it will enable timer interrupt!!
     if (HAL_TIM_Base_Start_IT(&htim1) != HAL_OK)
     {
@@ -387,7 +386,7 @@ static void MX_TIM2_Init(void)
   htim2.Instance = TIM2;
   htim2.Init.Prescaler = 79;
   htim2.Init.CounterMode = TIM_COUNTERMODE_DOWN;
-  htim2.Init.Period = 9999;
+  htim2.Init.Period = 999;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
   if (HAL_TIM_Base_Init(&htim2) != HAL_OK)

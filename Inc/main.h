@@ -79,6 +79,8 @@ void Error_Handler(void);
 
 /* Private defines -----------------------------------------------------------*/
 #define USER_WDT_val 2048
+#define ECODER_PULS_PER_REV 200
+#define ENCODER_FILTER 4
 /* USER CODE BEGIN Private defines */
 
 /* USER CODE END Private defines */
