@@ -188,6 +188,9 @@ int main(void)
     static uint8_t dir_value_str[] = "0";
     static uint8_t encoder_val_str[10] = {0};
     static uint32_t encoder_uart_msng_str_len;
+
+    USER_TIM1_Init();
+    USER_TIM2_Init();
     
   /* USER CODE END 2 */
 

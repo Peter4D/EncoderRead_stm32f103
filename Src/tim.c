@@ -42,10 +42,14 @@
 
 /* USER CODE BEGIN 0 */
 
+void USER_TIM1_Init(void);
+void USER_TIM2_Init(void);
+
 /* USER CODE END 0 */
 
 TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim2;
+
 
 /* TIM1 init function */
 void MX_TIM1_Init(void)
@@ -80,18 +84,6 @@ void MX_TIM1_Init(void)
     Error_Handler();
   }
 
-
-    /* USER CODE BEGIN 0 */
-
-    /* update interrupt flag if set at start so we need to clear it before enable timer update interrupt */
-    htim1.Instance->SR &= (~TIM_FLAG_UPDATE);
-    // _IT at the end mean that it will enable timer interrupt!!
-    if (HAL_TIM_Base_Start_IT(&htim1) != HAL_OK)
-    {
-        Error_Handler();
-    }
-    /* USER CODE END 0 */
-
 }
 /* TIM2 init function */
 void MX_TIM2_Init(void)
@@ -120,15 +112,6 @@ void MX_TIM2_Init(void)
   {
     Error_Handler();
   }
-
-    /* USER CODE BEGIN TIM2_Init 0 */
-    // _IT at the end mean that it will enable timer interrupt!!
-    if (HAL_TIM_Base_Start_IT(&htim2) != HAL_OK)
-    {
-        Error_Handler();
-    }
-    
-  /* USER CODE END TIM2_Init 0 */
 
 }
 
@@ -228,6 +211,25 @@ void HAL_TIM_Base_MspDeInit(TIM_HandleTypeDef* tim_baseHandle)
 } 
 
 /* USER CODE BEGIN 1 */
+
+void USER_TIM2_Init(void) {
+    // _IT at the end mean that it will enable timer interrupt!!
+    if (HAL_TIM_Base_Start_IT(&htim2) != HAL_OK)
+    {
+        Error_Handler();
+    }
+}
+
+void USER_TIM1_Init(void) {
+    /* update interrupt flag if set at start so we need to clear it before enable timer update interrupt */     
+    htim1.Instance->SR &= (~TIM_FLAG_UPDATE);
+    // _IT at the end mean that it will enable timer interrupt!!
+    if (HAL_TIM_Base_Start_IT(&htim1) != HAL_OK)
+    {
+        Error_Handler();
+    }
+}
+
 
 /* USER CODE END 1 */
 
