@@ -105,8 +105,12 @@ static void MX_TIM1_Init(void);
 /* USER CODE BEGIN 0 */
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
-    hEncoder.dir        = htim1.Instance->CR1 >> TIM_CR1_DIR_Pos;
-    /* #debug */
+    #define CALC_PRSC_val       (10)
+    static uint32_t calc_prsc = CALC_PRSC_val;
+
+    hEncoder.dir = htim1.Instance->CR1 >> TIM_CR1_DIR_Pos;
+    
+    /* HW timer2 calculation timer  */
     if(htim->Instance == htim2.Instance){
         HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_12);
 
@@ -114,20 +118,25 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
         /* read count value of encoder timer: */ 
         hEncoder.puls_cnt   = hEncoder.puls_encoder + hEncoder.rev_cnt * ECODER_PULS_PER_REV;
 
-        /* calculate speed */
-        hEncoder.speed = hEncoder.puls_cnt - hEncoder.puls_old_cnt;
-        hEncoder.puls_old_cnt = hEncoder.puls_cnt;
+        /*calculation Prescaler */
+        calc_prsc--;
+        if(calc_prsc == 0) {
+            calc_prsc = CALC_PRSC_val;
+            /* calculate speed */
+            hEncoder.speed = hEncoder.puls_cnt - hEncoder.puls_old_cnt;
+            hEncoder.puls_old_cnt = hEncoder.puls_cnt;
 
-        /* calculate acceleration */
-        hEncoder.accel      = hEncoder.speed - hEncoder.speed_old;
-        hEncoder.speed_old  = hEncoder.speed;
+            /* calculate acceleration */
+            hEncoder.accel      = hEncoder.speed - hEncoder.speed_old;
+            hEncoder.speed_old  = hEncoder.speed;
+        }
     }
 
+    /* HW timer1 (ENCODER) update (overflow) */ 
     if(htim->Instance == htim1.Instance){
         /* #debug */
         //HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_12);
 
-        /* timer1 (ENCODER) update (overflow) */
         if(hEncoder.dir == 0) {
             /* clockwise direction */
             hEncoder.rev_cnt++;
@@ -242,7 +251,6 @@ int main(void)
             
             hUart1_status = HAL_UART_Transmit_IT(&huart1, encoder_uart_msng_str, encoder_uart_msng_str_len );
             //hUart1_status = HAL_UART_Transmit_IT(&huart1, hello_msg, (sizeof(hello_msg)-1) );
-            //hUart1_status = HAL_UART_Transmit_IT(&huart1, "from stm32_HAL", sizeof("from stm32_HAL"));
             if (hUart1_status != HAL_OK)
             {
                 /* there is no buffer so this situation is not useful when two concurrent call are made */
@@ -332,27 +340,7 @@ static void MX_TIM1_Init(void)
     Error_Handler();
   }
   /* USER CODE BEGIN TIM1_Init 2 */
-    // sEncoder_Init.EncoderMode       = TIM_ENCODERMODE_TI1;      // encoder res. x2
-    // //sEncoder_Init.EncoderMode       = TIM_ENCODERMODE_TI12;   // encoder res. x4
-    // sEncoder_Init.IC1Polarity       = TIM_ICPOLARITY_RISING;
-    // sEncoder_Init.IC1Selection      = TIM_ICSELECTION_DIRECTTI;
-    // sEncoder_Init.IC1Prescaler      = TIM_ICPSC_DIV1;
-    // sEncoder_Init.IC1Filter         = 0x04;
-    // sEncoder_Init.IC2Polarity       = TIM_ICPOLARITY_RISING;
-    // sEncoder_Init.IC2Selection      = TIM_ICSELECTION_DIRECTTI;
-    // sEncoder_Init.IC2Prescaler      = TIM_ICPSC_DIV1;
-    // sEncoder_Init.IC2Filter         = 0x04;
-
-    // if (HAL_TIM_Encoder_Init(&htim1, &sEncoder_Init) != HAL_OK)
-    // {
-    //   Error_Handler();
-    // }
-
-    // if (HAL_TIM_Encoder_Start(&htim1, TIM_CHANNEL_ALL) != HAL_OK)
-    // {
-    //   Error_Handler();
-    // }
-
+    
     /* update interrupt flag if set at start so we need to clear it before enable timer update interrupt */
     htim1.Instance->SR &= (~TIM_FLAG_UPDATE);
     // _IT at the end mean that it will enable timer interrupt!!
@@ -362,7 +350,6 @@ static void MX_TIM1_Init(void)
     }
 
   /* USER CODE END TIM1_Init 2 */
-
 }
 
 /**
@@ -384,7 +371,7 @@ static void MX_TIM2_Init(void)
 
   /* USER CODE END TIM2_Init 1 */
   htim2.Instance = TIM2;
-  htim2.Init.Prescaler = 79;
+  htim2.Init.Prescaler = 799;
   htim2.Init.CounterMode = TIM_COUNTERMODE_DOWN;
   htim2.Init.Period = 999;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
