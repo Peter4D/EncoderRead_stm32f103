@@ -74,7 +74,7 @@ extern "C" {
 void Error_Handler(void);
 
 /* USER CODE BEGIN EFP */
-
+void systick_timer_swHandler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/

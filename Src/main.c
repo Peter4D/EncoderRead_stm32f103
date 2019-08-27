@@ -49,6 +49,7 @@
 /* USER CODE BEGIN Includes */
 #include "stm32f1xx_it.h"
 #include "utilities.h"
+#include "scheduler.h"
 
 #include <string.h>
 /* USER CODE END Includes */
@@ -71,6 +72,7 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
+
 static uint32_t encoder_cnt = 0;
 
 static HAL_StatusTypeDef hUart1_status;
@@ -88,6 +90,9 @@ typedef struct _encoder_t
 }encoder_t;
 
 encoder_t hEncoder = {0};
+
+/* user task */
+void TASK_ecoder_data_debugOut(void);
 
 /* USER CODE END PV */
 
@@ -183,17 +188,19 @@ int main(void)
   MX_ADC1_Init();
   MX_ADC2_Init();
   /* USER CODE BEGIN 2 */
-    static int32_t systickOld = 0;
-    static uint8_t hello_msg[] = "hello word\n";
+    // static int32_t systickOld = 0;
+    // static uint8_t hello_msg[] = "hello word\n";
 
-    #define ENCODER_OUT_MSNG_len    (100u)
-    static uint8_t encoder_uart_msng_str[ENCODER_OUT_MSNG_len] = {0};
-    static uint8_t dir_value_str[] = "0";
-    static uint8_t encoder_val_str[10] = {0};
-    static uint32_t encoder_uart_msng_str_len;
+    // #define ENCODER_OUT_MSNG_len    (100u)
+    // static uint8_t encoder_uart_msng_str[ENCODER_OUT_MSNG_len] = {0};
+    // static uint8_t dir_value_str[] = "0";
+    // static uint8_t encoder_val_str[10] = {0};
+    // static uint32_t encoder_uart_msng_str_len;
 
     USER_TIM1_Init();
     USER_TIM2_Init();
+
+    Scheduler.add_task(&TASK_ecoder_data_debugOut, 200);
     
   /* USER CODE END 2 */
 
@@ -206,64 +213,64 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 
-        if ((systickCnt - systickOld) >= 200)
-        {
-            systickOld = systickCnt;
+        // if ((systickCnt - systickOld) >= 200)
+        // {
+        //     systickOld = systickCnt;
 
             /* #debug */
-            HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
+            // HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
 
-            // convert direction into string
-            if(hEncoder.dir == 1){
-                dir_value_str[0] = '0';
-            }else {
-                dir_value_str[0] = '1';
-            }
-            /* convert encoder counts to string  */
+            // // convert direction into string
+            // if(hEncoder.dir == 1){
+            //     dir_value_str[0] = '0';
+            // }else {
+            //     dir_value_str[0] = '1';
+            // }
+            // /* convert encoder counts to string  */
             
-            /* construct uart out message */
-            strcpy(encoder_uart_msng_str, "============ \n");
-            strcat(encoder_uart_msng_str, "dir     : ");
-            strcat(encoder_uart_msng_str, dir_value_str);
-            strcat(encoder_uart_msng_str, "\n");
+            // /* construct uart out message */
+            // strcpy(encoder_uart_msng_str, "============ \n");
+            // strcat(encoder_uart_msng_str, "dir     : ");
+            // strcat(encoder_uart_msng_str, dir_value_str);
+            // strcat(encoder_uart_msng_str, "\n");
 
-            num2str(hEncoder.puls_cnt, encoder_val_str);
-            strcat(encoder_uart_msng_str, "step_cnt: ");
-            strcat(encoder_uart_msng_str, encoder_val_str);
-            strcat(encoder_uart_msng_str, "\n");
-
-            num2str(hEncoder.rev_cnt, encoder_val_str);
-            strcat(encoder_uart_msng_str, "rev_cnt : ");
-            strcat(encoder_uart_msng_str, encoder_val_str);
-            strcat(encoder_uart_msng_str, "\n");
-
-            num2str(hEncoder.speed, encoder_val_str);
-            strcat(encoder_uart_msng_str, "speed   : ");
-            strcat(encoder_uart_msng_str, encoder_val_str);
-            strcat(encoder_uart_msng_str, "\n");
-
-            num2str(hEncoder.accel, encoder_val_str);
-            strcat(encoder_uart_msng_str, "accel   : ");
-            strcat(encoder_uart_msng_str, encoder_val_str);
-            strcat(encoder_uart_msng_str, "\n");
-
-            /* uint16_t #test */
-            // num2str(hEncoder.puls_encoder, encoder_val_str);
-            // strcat(encoder_uart_msng_str, "puls_encod: ");
+            // num2str(hEncoder.puls_cnt, encoder_val_str);
+            // strcat(encoder_uart_msng_str, "step_cnt: ");
             // strcat(encoder_uart_msng_str, encoder_val_str);
             // strcat(encoder_uart_msng_str, "\n");
 
-            encoder_uart_msng_str_len = strlen(encoder_uart_msng_str);
-            assert_param(encoder_uart_msng_str_len < ENCODER_OUT_MSNG_len);
+            // num2str(hEncoder.rev_cnt, encoder_val_str);
+            // strcat(encoder_uart_msng_str, "rev_cnt : ");
+            // strcat(encoder_uart_msng_str, encoder_val_str);
+            // strcat(encoder_uart_msng_str, "\n");
+
+            // num2str(hEncoder.speed, encoder_val_str);
+            // strcat(encoder_uart_msng_str, "speed   : ");
+            // strcat(encoder_uart_msng_str, encoder_val_str);
+            // strcat(encoder_uart_msng_str, "\n");
+
+            // num2str(hEncoder.accel, encoder_val_str);
+            // strcat(encoder_uart_msng_str, "accel   : ");
+            // strcat(encoder_uart_msng_str, encoder_val_str);
+            // strcat(encoder_uart_msng_str, "\n");
+
+            // /* uint16_t #test */
+            // // num2str(hEncoder.puls_encoder, encoder_val_str);
+            // // strcat(encoder_uart_msng_str, "puls_encod: ");
+            // // strcat(encoder_uart_msng_str, encoder_val_str);
+            // // strcat(encoder_uart_msng_str, "\n");
+
+            // encoder_uart_msng_str_len = strlen(encoder_uart_msng_str);
+            // assert_param(encoder_uart_msng_str_len < ENCODER_OUT_MSNG_len);
             
-            hUart1_status = HAL_UART_Transmit_IT(&huart1, encoder_uart_msng_str, encoder_uart_msng_str_len );
-            //hUart1_status = HAL_UART_Transmit_IT(&huart1, hello_msg, (sizeof(hello_msg)-1) );
-            if (hUart1_status != HAL_OK)
-            {
-                /* there is no buffer so this situation is not useful when two concurrent call are made */
-                assert_param(0);
-            }
-        }
+            // hUart1_status = HAL_UART_Transmit_IT(&huart1, encoder_uart_msng_str, encoder_uart_msng_str_len );
+            // //hUart1_status = HAL_UART_Transmit_IT(&huart1, hello_msg, (sizeof(hello_msg)-1) );
+            // if (hUart1_status != HAL_OK)
+            // {
+            //     /* there is no buffer so this situation is not useful when two concurrent call are made */
+            //     assert_param(0);
+            // }
+        //}
     }
   /* USER CODE END 3 */
 }
@@ -309,6 +316,79 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
+
+void systick_timer_swHandler(void) {
+    Scheduler.exe();
+}
+
+/* user TASK implementation */
+void TASK_ecoder_data_debugOut(void) {
+    //systickOld = systickCnt;
+
+    static int32_t systickOld = 0;
+    static uint8_t hello_msg[] = "hello word\n";
+
+    #define ENCODER_OUT_MSNG_len    (100u)
+    static uint8_t encoder_uart_msng_str[ENCODER_OUT_MSNG_len] = {0};
+    static uint8_t dir_value_str[] = "0";
+    static uint8_t encoder_val_str[10] = {0};
+    static uint32_t encoder_uart_msng_str_len;
+
+    /* #debug */
+    HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
+
+    // convert direction into string
+    if(hEncoder.dir == 1){
+        dir_value_str[0] = '0';
+    }else {
+        dir_value_str[0] = '1';
+    }
+    /* convert encoder counts to string  */
+    
+    /* construct uart out message */
+    strcpy(encoder_uart_msng_str, "============ \n");
+    strcat(encoder_uart_msng_str, "dir     : ");
+    strcat(encoder_uart_msng_str, dir_value_str);
+    strcat(encoder_uart_msng_str, "\n");
+
+    num2str(hEncoder.puls_cnt, encoder_val_str);
+    strcat(encoder_uart_msng_str, "step_cnt: ");
+    strcat(encoder_uart_msng_str, encoder_val_str);
+    strcat(encoder_uart_msng_str, "\n");
+
+    num2str(hEncoder.rev_cnt, encoder_val_str);
+    strcat(encoder_uart_msng_str, "rev_cnt : ");
+    strcat(encoder_uart_msng_str, encoder_val_str);
+    strcat(encoder_uart_msng_str, "\n");
+
+    num2str(hEncoder.speed, encoder_val_str);
+    strcat(encoder_uart_msng_str, "speed   : ");
+    strcat(encoder_uart_msng_str, encoder_val_str);
+    strcat(encoder_uart_msng_str, "\n");
+
+    num2str(hEncoder.accel, encoder_val_str);
+    strcat(encoder_uart_msng_str, "accel   : ");
+    strcat(encoder_uart_msng_str, encoder_val_str);
+    strcat(encoder_uart_msng_str, "\n");
+
+    /* uint16_t #test */
+    // num2str(hEncoder.puls_encoder, encoder_val_str);
+    // strcat(encoder_uart_msng_str, "puls_encod: ");
+    // strcat(encoder_uart_msng_str, encoder_val_str);
+    // strcat(encoder_uart_msng_str, "\n");
+
+    encoder_uart_msng_str_len = strlen(encoder_uart_msng_str);
+    assert_param(encoder_uart_msng_str_len < ENCODER_OUT_MSNG_len);
+    
+    hUart1_status = HAL_UART_Transmit_IT(&huart1, encoder_uart_msng_str, encoder_uart_msng_str_len );
+    //hUart1_status = HAL_UART_Transmit_IT(&huart1, hello_msg, (sizeof(hello_msg)-1) );
+    if (hUart1_status != HAL_OK)
+    {
+        /* there is no buffer so this situation is not useful when two concurrent call are made */
+        assert_param(0);
+    }
+}
+
 
 /* USER CODE END 4 */
 
