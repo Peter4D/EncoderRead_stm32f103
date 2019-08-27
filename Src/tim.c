@@ -50,7 +50,6 @@ void USER_TIM2_Init(void);
 TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim2;
 
-
 /* TIM1 init function */
 void MX_TIM1_Init(void)
 {

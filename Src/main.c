@@ -40,6 +40,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "adc.h"
 #include "tim.h"
 #include "usart.h"
 #include "gpio.h"
@@ -179,11 +180,13 @@ int main(void)
   MX_USART1_UART_Init();
   MX_TIM2_Init();
   MX_TIM1_Init();
+  MX_ADC1_Init();
+  MX_ADC2_Init();
   /* USER CODE BEGIN 2 */
     static int32_t systickOld = 0;
     static uint8_t hello_msg[] = "hello word\n";
 
-    #define ENCODER_OUT_MSNG_len    (75u)
+    #define ENCODER_OUT_MSNG_len    (100u)
     static uint8_t encoder_uart_msng_str[ENCODER_OUT_MSNG_len] = {0};
     static uint8_t dir_value_str[] = "0";
     static uint8_t encoder_val_str[10] = {0};
@@ -217,14 +220,20 @@ int main(void)
                 dir_value_str[0] = '1';
             }
             /* convert encoder counts to string  */
-            num2str(hEncoder.puls_cnt, encoder_val_str);
+            
             /* construct uart out message */
             strcpy(encoder_uart_msng_str, "============ \n");
             strcat(encoder_uart_msng_str, "dir     : ");
             strcat(encoder_uart_msng_str, dir_value_str);
             strcat(encoder_uart_msng_str, "\n");
 
+            num2str(hEncoder.puls_cnt, encoder_val_str);
             strcat(encoder_uart_msng_str, "step_cnt: ");
+            strcat(encoder_uart_msng_str, encoder_val_str);
+            strcat(encoder_uart_msng_str, "\n");
+
+            num2str(hEncoder.rev_cnt, encoder_val_str);
+            strcat(encoder_uart_msng_str, "rev_cnt : ");
             strcat(encoder_uart_msng_str, encoder_val_str);
             strcat(encoder_uart_msng_str, "\n");
 
@@ -267,6 +276,7 @@ void SystemClock_Config(void)
 {
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
+  RCC_PeriphCLKInitTypeDef PeriphClkInit = {0};
 
   /**Initializes the CPU, AHB and APB busses clocks 
   */
@@ -287,6 +297,12 @@ void SystemClock_Config(void)
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
   if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_ADC;
+  PeriphClkInit.AdcClockSelection = RCC_ADCPCLK2_DIV2;
+  if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
   {
     Error_Handler();
   }
