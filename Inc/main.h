@@ -79,7 +79,7 @@ void systick_timer_swHandler(void);
 
 /* Private defines -----------------------------------------------------------*/
 #define USER_WDT_val 2048
-#define ECODER_PULS_PER_REV 200
+#define ECODER_PULS_PER_REV 400
 #define ENCODER_FILTER 4
 /* USER CODE BEGIN Private defines */
 
