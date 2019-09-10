@@ -94,6 +94,8 @@ encoder_t hEncoder = {0};
 /* user task */
 void TASK_ecoder_data_debugOut(void);
 
+uint32_t Filter_digital_state(uint32_t const *const input);
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -105,12 +107,27 @@ void SystemClock_Config(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
-    #define CALC_PRSC_val       (10)
-    static uint32_t calc_prsc = CALC_PRSC_val;
-
-    hEncoder.dir = htim1.Instance->CR1 >> TIM_CR1_DIR_Pos;
+uint32_t Filter_digital_state(uint32_t const *const input) {
+    #define FILTER_LEVEL   (4)
     
+    static uint32_t filter = 0;
+
+    filter << 1;
+    filter |= (*input & 0x0001);
+    
+    if(filter & (FILTER_LEVEL - 1) == (FILTER_LEVEL - 1) ) {
+        return 1;
+    }else if( filter & (FILTER_LEVEL - 1) == 0 ){
+        return 0;
+    }
+}
+
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
+    #define CALC_PRSC_val       (5)
+    static uint32_t calc_prsc = CALC_PRSC_val;
+    
+    hEncoder.dir = htim1.Instance->CR1 >> TIM_CR1_DIR_Pos;
+
     /* HW timer2 calculation timer  */
     if(htim->Instance == htim2.Instance){
         HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_12);
@@ -128,7 +145,12 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
             hEncoder.puls_old_cnt = hEncoder.puls_cnt;
 
             /* calculate acceleration */
-            hEncoder.accel      = hEncoder.speed - hEncoder.speed_old;
+            //hEncoder.accel      = hEncoder.speed - hEncoder.speed_old;
+            if(hEncoder.dir == 0) {
+                hEncoder.accel = hEncoder.speed - hEncoder.speed_old;
+            }else {
+                hEncoder.accel = hEncoder.speed_old - hEncoder.speed;
+            }
             hEncoder.speed_old  = hEncoder.speed;
         }
     }
