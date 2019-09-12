@@ -81,8 +81,10 @@ void systick_timer_swHandler(void);
 #define USER_WDT_val 2048
 #define ECODER_PULS_PER_REV 400
 #define ENCODER_FILTER 4
-/* USER CODE BEGIN Private defines */
 
+/* USER CODE BEGIN Private defines */
+#define START_SPIN_CNT_TH           (2)
+#define DECELERATION_FILTER_TH      (3)
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus

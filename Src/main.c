@@ -50,6 +50,7 @@
 #include "stm32f1xx_it.h"
 #include "utilities.h"
 #include "scheduler_2.h"
+#include "sw_timer.h"
 
 #include <string.h>
 /* USER CODE END Includes */
@@ -73,7 +74,7 @@
 
 /* USER CODE BEGIN PV */
 
-static uint32_t encoder_cnt = 0;
+//static uint32_t encoder_cnt = 0;
 
 static HAL_StatusTypeDef hUart1_status;
 
@@ -91,8 +92,27 @@ typedef struct _encoder_t
 
 encoder_t hEncoder = {0};
 
-/* user task */
+/* user tasks */
 void TASK_ecoder_data_debugOut(void);
+/**
+ * @brief program main state machine 
+ */
+void TASK_stateMachine(void);
+/**
+ * @brief main state machine function pointer 
+ */
+void (*pAtive_state)(void);
+
+void SM_init(void);
+
+void SM_idle(void);
+void SM_waitDeceleration(void);
+void SM_break(void);
+
+void SM_transition_2_idle(void);
+void SM_transition_2_waitDeceleration(void);
+void SM_transition_2_break(void);
+
 
 uint32_t Filter_digital_state(uint32_t const *const input);
 
@@ -109,28 +129,32 @@ void SystemClock_Config(void);
 
 uint32_t Filter_digital_state(uint32_t const *const input) {
     #define FILTER_LEVEL   (4)
-    
+
     static uint32_t filter = 0;
+    uint32_t return_value = 0;
 
     filter << 1;
     filter |= (*input & 0x0001);
     
-    if(filter & (FILTER_LEVEL - 1) == (FILTER_LEVEL - 1) ) {
-        return 1;
+    if( (filter & (FILTER_LEVEL - 1)) == (FILTER_LEVEL - 1) ) {
+        return_value = 1;
     }else if( filter & (FILTER_LEVEL - 1) == 0 ){
-        return 0;
+        return_value = 0;
     }
+    return return_value;
 }
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
     #define CALC_PRSC_val       (5)
     static uint32_t calc_prsc = CALC_PRSC_val;
+    //static uint32_t dir_filtered = 0;
     
     hEncoder.dir = htim1.Instance->CR1 >> TIM_CR1_DIR_Pos;
 
     /* HW timer2 calculation timer  */
     if(htim->Instance == htim2.Instance){
-        HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_12);
+        //HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_12);
+        //dir_filtered = Filter_digital_state(&hEncoder.dir);
 
         hEncoder.puls_encoder = htim1.Instance->CNT; 
         /* read count value of encoder timer: */ 
@@ -147,6 +171,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
             /* calculate acceleration */
             //hEncoder.accel      = hEncoder.speed - hEncoder.speed_old;
             if(hEncoder.dir == 0) {
+            //if(dir_filtered == 0) {
                 hEncoder.accel = hEncoder.speed - hEncoder.speed_old;
             }else {
                 hEncoder.accel = hEncoder.speed_old - hEncoder.speed;
@@ -214,7 +239,9 @@ int main(void)
     USER_TIM1_Init();
     USER_TIM2_Init();
 
+    SM_init();
     Scheduler.add_task(&TASK_ecoder_data_debugOut, 200);
+    Scheduler.add_task(&TASK_stateMachine, 200);
     
   /* USER CODE END 2 */
 
@@ -274,15 +301,85 @@ void SystemClock_Config(void)
 /* USER CODE BEGIN 4 */
 
 void systick_timer_swHandler(void) {
+    _sw_timers_tick();
     Scheduler.run();
 }
 
-/* user TASK implementation */
+/* user TASKs */
+
+/* state machine global variables: */
+sw_timer_t xTmr_break = {0};
+
+void TASK_stateMachine(void) {
+    pAtive_state();
+}
+
+void SM_init(void){
+    swTimer_init(&xTmr_break);
+    SM_transition_2_idle();
+}
+
+static uint32_t revolution_cnt = 0;
+void SM_idle(void){
+    if( (hEncoder.rev_cnt - revolution_cnt) > START_SPIN_CNT_TH ) {
+        SM_transition_2_waitDeceleration();
+    }
+}
+
+void SM_waitDeceleration(void){
+    static uint32_t filter_cnt = 0;
+
+    if(hEncoder.accel < 0) {
+        filter_cnt++;
+    }else{
+        filter_cnt = 0;
+    }
+
+    if(filter_cnt > DECELERATION_FILTER_TH) {
+        /* breaking is detected go to break state*/
+        filter_cnt = 0;
+        /*activate IO */
+        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_SET);
+        SM_transition_2_break();
+    }
+}
+
+
+void SM_break(void){
+    /* wait to stop */
+    if(hEncoder.speed == 0) {
+        /* wait another 2 seconds */
+        //if(swTimer.getTime(&xTmr_break) == 0){
+        if(swTimer.getTmrStatus(&xTmr_break) == SWTM_STOP){
+            swTimer.set(&xTmr_break, 2000);
+        }
+        if(swTimer.isElapsed(&xTmr_break) == 1){
+            /*de-activate IO */
+            HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_RESET);
+            SM_transition_2_idle();
+        }
+    }
+}
+
+void SM_transition_2_idle(void){
+    revolution_cnt = hEncoder.rev_cnt;
+    pAtive_state = &SM_idle;
+}
+
+void SM_transition_2_waitDeceleration(void){
+    pAtive_state = &SM_waitDeceleration;
+}
+
+void SM_transition_2_break(void){
+    pAtive_state = &SM_break;
+}
+
+
 void TASK_ecoder_data_debugOut(void) {
     //systickOld = systickCnt;
 
-    static int32_t systickOld = 0;
-    static uint8_t hello_msg[] = "hello word\n";
+    //static int32_t systickOld = 0;
+    //static uint8_t hello_msg[] = "hello word\n";
 
     #define ENCODER_OUT_MSNG_len    (100u)
     static uint8_t encoder_uart_msng_str[ENCODER_OUT_MSNG_len] = {0};
