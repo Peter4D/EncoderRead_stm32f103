@@ -84,7 +84,7 @@ void systick_timer_swHandler(void);
 
 /* USER CODE BEGIN Private defines */
 #define START_SPIN_CNT_TH           (2)
-#define DECELERATION_FILTER_TH      (3)
+#define DECELERATION_FILTER_TH      (6)
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus
