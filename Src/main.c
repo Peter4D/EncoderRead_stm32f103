@@ -149,7 +149,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
     static uint32_t calc_prsc = CALC_PRSC_val;
     //static uint32_t dir_filtered = 0;
     
-    hEncoder.dir = htim1.Instance->CR1 >> TIM_CR1_DIR_Pos;
+    hEncoder.dir = (htim1.Instance->CR1 >> TIM_CR1_DIR_Pos) & 0x0001;
 
     /* HW timer2 calculation timer  */
     if(htim->Instance == htim2.Instance){
@@ -319,11 +319,17 @@ void SM_init(void){
     SM_transition_2_idle();
 }
 
-static uint32_t revolution_cnt = 0;
+static int64_t revolution_cnt = 0;
 void SM_idle(void){
-    if( (hEncoder.rev_cnt - revolution_cnt) > START_SPIN_CNT_TH ) {
+    
+    if( ((hEncoder.rev_cnt - revolution_cnt) > START_SPIN_CNT_TH ) &&
+    (hEncoder.dir == 0) ) 
+    {
         SM_transition_2_waitDeceleration();
+    }else if (hEncoder.dir == 1){
+        revolution_cnt = hEncoder.rev_cnt;
     }
+
 }
 
 void SM_waitDeceleration(void){
@@ -392,9 +398,9 @@ void TASK_ecoder_data_debugOut(void) {
 
     // convert direction into string
     if(hEncoder.dir == 1){
-        dir_value_str[0] = '0';
-    }else {
         dir_value_str[0] = '1';
+    }else {
+        dir_value_str[0] = '0';
     }
     /* convert encoder counts to string  */
     
