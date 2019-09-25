@@ -321,14 +321,29 @@ void SM_init(void){
 
 static int64_t revolution_cnt = 0;
 void SM_idle(void){
+    static int64_t rev_diff = 0;
     
-    if( ((hEncoder.rev_cnt - revolution_cnt) > START_SPIN_CNT_TH ) &&
+    rev_diff = hEncoder.rev_cnt - revolution_cnt;
+     
+    if( (rev_diff > START_SPIN_CNT_TH ) &&
     (hEncoder.dir == ROT_OF_INTEREST) ) 
     {
         SM_transition_2_waitDeceleration();
     }else if (hEncoder.dir == COUNTER_ROT){
         revolution_cnt = hEncoder.rev_cnt;
     }
+
+    //------------------------------------------------------------------------
+    /* this part is to filter out very slow rotation of a shaft  */
+    if( (rev_diff > 1) && (swTimer.getTmrStatus(&xTmr_break) == SWTM_STOP) ) {
+        swTimer.set(&xTmr_break, 5000);
+    }
+
+    if(swTimer.isElapsed(&xTmr_break) == 1) {
+        swTimer.clear(&xTmr_break);
+        revolution_cnt = hEncoder.rev_cnt;
+    }
+    //------------------------------------------------------------------------
 
 }
 
@@ -337,7 +352,6 @@ static uint32_t filter_cnt = 0;
 static uint32_t speed_filter = 0;
 void SM_waitDeceleration(void){
     
-
     if(hEncoder.accel < 0) {
         filter_cnt++;
     }else{
@@ -381,6 +395,7 @@ void SM_transition_2_idle(void){
 }
 
 void SM_transition_2_waitDeceleration(void){
+    swTimer.clear(&xTmr_break);
     pAtive_state = &SM_waitDeceleration;
 }
 
