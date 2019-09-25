@@ -87,6 +87,8 @@ void systick_timer_swHandler(void);
 #define DECELERATION_FILTER_TH      (6)
 #define SPEED_FILTER_TH             (6)
 
+#define DELAY_AFTER_STOP            (2000) // in ms
+
 #define CLOCK_WISE                  (0)
 #define COUNTER_CLOCK_WISE          (1)
 

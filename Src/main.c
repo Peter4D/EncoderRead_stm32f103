@@ -344,7 +344,6 @@ void SM_idle(void){
         revolution_cnt = hEncoder.rev_cnt;
     }
     //------------------------------------------------------------------------
-
 }
 
 
@@ -378,7 +377,7 @@ void SM_break(void){
     if(hEncoder.speed == 0) {
         /* wait another 2 seconds */
         if(swTimer.getTmrStatus(&xTmr_break) == SWTM_STOP){
-            swTimer.set(&xTmr_break, 2000);
+            swTimer.set(&xTmr_break, DELAY_AFTER_STOP);
         }
         if(swTimer.isElapsed(&xTmr_break) == 1){
             /*de-activate IO */
