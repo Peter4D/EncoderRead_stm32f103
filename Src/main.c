@@ -185,10 +185,10 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
         /* #debug */
         //HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_12);
 
-        if(hEncoder.dir == 0) {
+        if(hEncoder.dir == ROT_OF_INTEREST) {
             /* clockwise direction */
             hEncoder.rev_cnt++;
-        }else if(hEncoder.dir == 1) {
+        }else if(hEncoder.dir == COUNTER_ROT) {
             /* counter clockwise direction */
             hEncoder.rev_cnt--;
         }
@@ -323,17 +323,20 @@ static int64_t revolution_cnt = 0;
 void SM_idle(void){
     
     if( ((hEncoder.rev_cnt - revolution_cnt) > START_SPIN_CNT_TH ) &&
-    (hEncoder.dir == 0) ) 
+    (hEncoder.dir == ROT_OF_INTEREST) ) 
     {
         SM_transition_2_waitDeceleration();
-    }else if (hEncoder.dir == 1){
+    }else if (hEncoder.dir == COUNTER_ROT){
         revolution_cnt = hEncoder.rev_cnt;
     }
 
 }
 
+
+static uint32_t filter_cnt = 0;
+static uint32_t speed_filter = 0;
 void SM_waitDeceleration(void){
-    static uint32_t filter_cnt = 0;
+    
 
     if(hEncoder.accel < 0) {
         filter_cnt++;
@@ -341,9 +344,14 @@ void SM_waitDeceleration(void){
         filter_cnt = 0;
     }
 
-    if(filter_cnt > DECELERATION_FILTER_TH) {
-        /* breaking is detected go to break state*/
-        filter_cnt = 0;
+    if(hEncoder.speed == 0) {
+        speed_filter++;
+    }else{
+        speed_filter = 0;
+    }
+
+    if( (filter_cnt > DECELERATION_FILTER_TH) || speed_filter > SPEED_FILTER_TH) 
+    {
         /*activate IO */
         HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_SET);
         SM_transition_2_break();
@@ -355,7 +363,6 @@ void SM_break(void){
     /* wait to stop */
     if(hEncoder.speed == 0) {
         /* wait another 2 seconds */
-        //if(swTimer.getTime(&xTmr_break) == 0){
         if(swTimer.getTmrStatus(&xTmr_break) == SWTM_STOP){
             swTimer.set(&xTmr_break, 2000);
         }
@@ -368,6 +375,7 @@ void SM_break(void){
 }
 
 void SM_transition_2_idle(void){
+    swTimer.clear(&xTmr_break);
     revolution_cnt = hEncoder.rev_cnt;
     pAtive_state = &SM_idle;
 }
@@ -377,6 +385,8 @@ void SM_transition_2_waitDeceleration(void){
 }
 
 void SM_transition_2_break(void){
+    filter_cnt = 0;
+    speed_filter = 0;
     pAtive_state = &SM_break;
 }
 
@@ -397,7 +407,7 @@ void TASK_ecoder_data_debugOut(void) {
     HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
 
     // convert direction into string
-    if(hEncoder.dir == 1){
+    if(hEncoder.dir == ROT_OF_INTEREST){
         dir_value_str[0] = '1';
     }else {
         dir_value_str[0] = '0';

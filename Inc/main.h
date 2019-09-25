@@ -85,6 +85,23 @@ void systick_timer_swHandler(void);
 /* USER CODE BEGIN Private defines */
 #define START_SPIN_CNT_TH           (2)
 #define DECELERATION_FILTER_TH      (6)
+#define SPEED_FILTER_TH             (6)
+
+#define CLOCK_WISE                  (0)
+#define COUNTER_CLOCK_WISE          (1)
+
+
+#define ROT_OF_INTEREST             (CLOCK_WISE)
+//#define ROT_OF_INTEREST             (COUNTER_CLOCK_WISE)
+
+
+#if     (ROT_OF_INTEREST == CLOCK_WISE)
+    #define COUNTER_ROT (COUNTER_CLOCK_WISE)
+#elif   (ROT_OF_INTEREST == COUNTER_CLOCK_WISE)
+    #define COUNTER_ROT (CLOCK_WISE)
+#endif
+
+
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus
